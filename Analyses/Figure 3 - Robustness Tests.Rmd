@@ -1,0 +1,72 @@
+---
+title: "FIGURE 3: Robustness Test Linguistic and Semantic Differences"
+---
+
+Import data and libraries:
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+source("source_file.R")
+```
+
+Create crosstabs:
+```{r}
+# Function to create crosstab
+crosstab = function(var1, var2, name_var, name_pej) {
+ tab = data.frame(prof_trad = rownames(addmargins(table(var1, var2), 2)),
+            n = addmargins(table(var1, var2), 2)[,2],
+            sum = addmargins(table(var1, var2), 2)[,3])
+ tab$test = name_var; tab$pejoration = name_pej
+ tab$mean = 0; tab$lower = 0; tab$upper = 0
+ return(tab)}
+
+crosstabs = rbind(crosstab(df$prof_trad, df$pej_hist, "Media History", "Historical"), 
+                  crosstab(df$prof_trad, df$pej_cont, "Media History", "Contemporary"),
+                  crosstab(df$aut, df$pej_hist, "Political History", "Historical"), 
+                  crosstab(df$aut, df$pej_cont, "Political History", "Contemporary"))
+
+colnames(crosstabs) = c("variable", "n", "sum", "test", "pejoration", "mean", "lower", "upper")
+```
+
+Function to calculate Bayesian proportions and credible intervals:
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+bayes_prop = function(n, sum) {
+ library(binom)
+ binom.bayes(n, sum, conf.level = 0.95, type = c("highest", "central"), 
+ prior.shape1 = 0.5, prior.shape2 = 0.5, tol = .Machine$double.eps^0.5, maxit = 1000)[,c(6:8)]}
+```
+
+Calculate bayesian proportions and credible intervals and integrate in dataset
+```{r}
+for (i in c(1:length(crosstabs$variable))) {
+ crosstabs$mean[i] = bayes_prop(crosstabs$n[i], crosstabs$sum[i])[,1]*100
+ crosstabs$lower[i] = bayes_prop(crosstabs$n[i], crosstabs$sum[i])[,2]*100
+ crosstabs$upper[i] = bayes_prop(crosstabs$n[i], crosstabs$sum[i])[,3]*100}
+crosstabs
+```
+
+Function to create plot
+```{r}
+bayesprop_plot = function(data, xlab) {
+ library(ggplot2)
+ plot = ggplot(data, aes(variable, mean)) + ylim(0, 30) + xlab(xlab) + ylab("Percentage") + 
+  geom_col(alpha=0.2, colour = "black", fill = "gray10") +
+  geom_errorbar(aes(ymin=lower, ymax=upper), width=.1, color = "grey40") + 
+  geom_point(color = "black", size=1) +
+  theme_minimal() + 
+  theme(axis.text.x = element_text(vjust = 0.5, hjust = 0.5), 
+        axis.title.x = element_text(vjust = -2), strip.text = element_text(size = 12)) + 
+  facet_grid(~ pejoration)
+  return(plot)}
+```
+
+```{r}
+crosstabs$variable = factor(crosstabs$variable,levels = c("Low", "Medium", "High", "No", "Yes"))
+p1 = bayesprop_plot(subset(crosstabs, test == "Media History"), "(a) Level of Professionalism") 
+p2 = bayesprop_plot(subset(crosstabs, test == "Political History"), "(b) Authoritarian Past") + 
+ theme(axis.title.y = element_blank(), axis.text.y = element_blank())
+
+ggpubr::ggarrange(p1, p2, widths = c(1.05, 1))
+dev.copy(png,paste0(fig_dir,'Figure 3 - Robustness.png'), width = 3600, height = 1800, res=400)
+dev.off()
+```
+
+

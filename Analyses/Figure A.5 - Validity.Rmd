@@ -1,0 +1,77 @@
+---
+title: "Krippendorff"
+output: html_document
+---
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+library(writexl)
+library(readxl)
+```
+
+Import Data
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+merge = read_xlsx("/Users/sjifradeleeuw/surfdrive/University\ of\ Amsterdam/Study\ 3/Datasets/Krippendorf/alpha.xlsx")
+add = read_xlsx("/Users/sjifradeleeuw/surfdrive/University\ of\ Amsterdam/Study\ 3/Datasets/Krippendorf/danish.xlsx")
+colnames(add) = c("unique", "t1", "t2", "DK_FP")
+add
+```
+
+Merge Data
+
+```{r eval=FALSE, include=FALSE}
+merge = merge(merge, add, by = "unique")
+# merge = subset(merge, select = c("type", "unique", "ENG_FP", "IT_FP", "GE_FP", "ES_FP", "NL_FP", "FR_FP", "DK_FP"))
+```
+
+```{r}
+merge
+```
+
+
+```{r}
+write_xlsx(merge, path = "/Users/sjifradeleeuw/surfdrive/University\ of\ Amsterdam/Study\ 3/Datasets/Krippendorf/alpha.xlsx", col_names = TRUE)
+```
+
+
+```{r}
+library(irr)
+kripp_1 = as.vector(merge$ENG_FP)
+kripp_2 = as.vector(merge$IT_FP)
+kripp_3 = as.vector(merge$GE_FP)
+kripp_4 = as.vector(merge$ES_FP)
+kripp_5 = as.vector(merge$NL_FP)
+kripp_6 = as.vector(merge$FR_FP)
+kripp_7 = as.vector(merge$DK_FP)
+kripp = as.matrix(rbind(kripp_1, kripp_2, kripp_3, kripp_4, kripp_5, kripp_6, kripp_7), nrow = 7)
+kripp.alpha(kripp,"nominal")
+```
+```{r}
+merge
+```
+
+
+```{r}
+agg = data.frame(English = mean(merge$ENG_FP), 
+                 Italian = mean(merge$IT_FP),
+                 German = mean(merge$GE_FP),
+                 Spanish = mean(merge$ES_FP),
+                 Dutch = mean(merge$NL_FP),
+                 French = mean(merge$FR_FP), 
+                 Danish = mean(merge$DK_FP.x))
+agg = stack(agg)
+colnames(agg) = c("prop", "lang")
+```
+
+```{r}
+library(ggplot2)
+ggplot(data=agg, aes(x=as.factor(lang), y=prop)) + geom_hline(yintercept = mean(agg$prop), color = "grey80", size = 2) +
+ geom_bar(stat="identity", alpha = 0.7, color = "black") + theme_minimal() + 
+ ylab("Proportion Coded as False Positive") + xlab(" ")
+```
+```{r}
+stack = stack(merge, select = -c(type, unique))
+anova = glm(values~ind, family="binomial", data = stack)
+summary(anova)
+```
+

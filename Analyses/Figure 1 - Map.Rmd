@@ -1,0 +1,84 @@
+---
+title: "FIGURE 1: Comparing Pejorative Coverage in News Media"
+---
+
+Load libraries 
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+library(mapproj)
+library(rworldmap)
+library(plyr)
+```
+
+Import data and directories
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+source("source_file.R")
+```
+
+Acquires the worldmap and creates a vector containing the countries you want in your map
+```{r}
+worldMap = getMap()
+countries = unique(subset(data.frame(continent = as.character(worldMap$Stern), 
+             country = as.character(worldMap$REGION)),
+             continent == "Europe" | continent == "North America"))$country
+countries = which(worldMap$REGION%in%countries)
+
+coordinates = lapply(countries, function(i){
+  df = data.frame(worldMap@polygons[[i]]@Polygons[[1]]@coords)
+  df$country = as.character(worldMap$NAME[i])
+  colnames(df) = list("long", "lat", "country")
+  return(df)
+  })
+
+coordinates = do.call("rbind", coordinates)
+coordinates = subset(coordinates, country != "Russia" & country != "Iceland" & 
+                     country != "Greenland" & country != "Turkey" & country != "Israel" &
+                     country!= "Cyprus" & country!= "N. Cyprus" & country != "Georgia" & 
+                     country != "Ukraine" & country != "West Bank" & country != "Gaza" & 
+                     country != "Br. Indian Ocean Ter.")
+```
+
+Changes coordinates of Canada and the US so that it is closer to the Ireland
+```{r}
+coordinates$long[coordinates$country=="Canada"] = coordinates$long[coordinates$country=="Canada"] + 25
+coordinates$long[coordinates$country=="United States"] = coordinates$long[coordinates$country=="United States"] + 25
+coordinates$country[coordinates$country == "United Kingdom"] = "Britain"
+```
+
+Obtain the values necessary for the map from your own data and merge with coordinates
+```{r}
+df$pej = 0; df$pej[df$pej_antidem == 1] = 1; df$pej[df$pej_cont == 1] = 1;
+df$pej[df$pej_hist == 1] = 1; df$pej[df$pej_ill == 1] = 1
+pej = aggregate(pej ~ country, data = df, FUN = mean)
+pej$country = as.character(pej$country)
+```
+
+Merge country values with coordinate data
+```{r}
+coordinates$pej = NA
+
+obtain_pej = function(cntry) {
+ coordinates$pej[coordinates$country == cntry] = round(subset(pej, country == cntry)[,2],2)
+ return(coordinates)}
+
+for (i in unique(pej$country)) {coordinates = obtain_pej(i)}
+```
+
+Plot
+```{r}
+ggplot() + 
+  geom_polygon(data = coordinates, 
+    aes(x = long, y = lat, group = country, fill = pej), colour = "black", size = 0.1, alpha=0.9) + 
+  coord_map(xlim = c(-120, 40),  ylim = c(20, 75)) + 
+  scale_fill_gradient(name = "% Pejoration", low = "grey81" , high = "black", na.value = NA) + 
+  theme_void() + 
+  theme(
+    axis.text = element_blank(), axis.ticks = element_blank(), 
+    axis.title = element_blank(), legend.title = element_text(vjust = 0.80),
+    plot.margin = unit(0 * c(-1.5, -1.5, -1.5, -1.5), "lines"),
+    legend.justification = "center", legend.position = "bottom") 
+
+
+dev.copy(png,paste0(fig_dir,'Figure 1 - Map.png'), width = 3600, height = 2400, res=400)
+dev.off()
+```
+

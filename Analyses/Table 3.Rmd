@@ -1,0 +1,226 @@
+---
+title: "TABLE 3: Explaining Pejoration Using Countries’ Political History"
+---
+
+## Preparation
+
+This chunk imports the following packages.
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+library(data.table)
+library(psych)
+library(brms)
+library(ggmcmc)
+library(mcmcplots)
+library(dplyr)
+library(gsubfn)
+library(psych)
+library(ggplot2)
+library(readxl)
+library(ggpubr)
+library(broom)
+library(sjstats)
+library(sjmisc)
+```
+
+This chunk imports the data with the validated content analysis:
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+agg = read_excel("/aggregate_validated.xlsx") # Change directory prior to running 
+```
+
+Dependent variable: if one of the types of pejoration is present, code as '1'
+```{r}
+agg$stigma = 0 
+agg$stigma[agg$st_antidem_m == 1 | agg$st_hist_m == 1 | agg$st_ill_m == 1 | agg$st_cont_m == 1 | agg$st_pop_m == 1] = 1 
+```
+
+Clustering levels: 
+```{r}
+agg$outletyear = paste0(agg$outlet, agg$year)
+```
+
+Specify measurement level of variables in the analysis and produce overview
+```{r}
+agg$outlet = factor(agg$outlet)
+
+print("(1) Dependent variable: Stigmatization")
+agg$stigma = as.numeric(agg$stigma)
+table(agg$stigma) 
+  
+print("(2) Independent variable: Professionalism")
+agg$prof_trad = as.factor(agg$prof_trad)
+agg$prof_trad = factor(agg$prof_trad ,levels(agg$prof_trad)[c(2,3,1)])
+table(agg$prof_trad)
+  
+print("(3) Independent variable: Parallelism")
+agg$par_trad = as.factor(agg$par_trad)
+agg$par_trad = factor(agg$par_trad ,levels(agg$par_trad)[c(2,3,1)])
+table(agg$par_trad)
+  
+print("(4) Independent variable: Authoritarian Legacy")
+table(agg$aut)
+  
+print("(5) Independent variable: Political Leaning")
+agg$lr = as.factor(agg$lr)
+agg$lr = factor(agg$lr ,levels(agg$lr)[c(2,3,1)])
+table(agg$lr)
+  
+print("(6) Independent variable: Political Leaning Binary")
+agg$lr_b = agg$lr 
+agg$lr_b[agg$lr=="center"] = NA
+table(agg$lr_b)
+  
+print("(7) Independent variable: Length")
+agg$length = as.numeric(agg$length)
+describe(agg$length)
+```
+
+Functions: 
+```{r}
+# Predicted Probabilities
+logit_prob = function(logit){
+  odds = exp(logit)
+  prob = odds / (1 + odds)
+  return(prob)}
+```
+
+## Analyses
+
+Full analyses:
+```{r}
+# Model 2a
+m2a = brm(
+  stigma ~  aut + lr + length + (1 | outlet) + (1 | cntry) + (1 | year) + (1 + outletyear),
+  data = agg, family = "bernoulli", chains = 2, silent= TRUE, refresh=0, 
+  open_progress = FALSE, warmup = 1500, iter = 4500, cores=2, seed=123)
+
+# Model 2b
+m2b = brm(
+  stigma ~  aut + lr_b + aut*lr_b + length + (1 | outlet) + (1 | cntry) + (1 | year) + (1 + outletyear),
+  data = agg,  family = "bernoulli",  chains = 2, silent = TRUE,  refresh = 0, open_progress = FALSE, 
+  warmup = 1500, iter = 4500, cores = 2, seed = 123, save_all_pars = TRUE, inits = "random")
+
+print(summary(m2a), digits = 3)
+print(summary(m2b), digits = 3)
+
+# intra-class correlation
+icc(m2a, re.form = NULL, typical = "mean", ppd = FALSE, digits = 4)
+icc(m2b, re.form = NULL, typical = "mean", ppd = FALSE, digits = 4)
+
+# Information criteria
+m2a = add_criterion(m1a, c("loo"))
+m2b = add_criterion(m1b, c("loo"))
+bayes_R2(m2a, resp = NULL, summary = TRUE, robust = FALSE, probs = c(0.025, 0.975))
+bayes_R2(m2b, resp = NULL, summary = TRUE, robust = FALSE, probs = c(0.025, 0.975))
+```
+
+Partial Analyses: 
+```{r}
+# Model 1a
+quiet(m2a_partial = brm(
+  stigma ~  aut + (1 | outlet) + (1 | cntry) + (1 | year) + (1 + outletyear),
+  data = agg, family = "bernoulli", chains = 2, silent= TRUE, refresh=0, 
+  open_progress = FALSE, warmup = 1500, iter = 4500, cores=2, seed=123))
+
+# Model 1b
+quiet(m2b_partial = brm(
+  stigma ~ aut + lr_b + aut*lr_b + (1 | outlet) + (1 | cntry) + (1 | year) + (1 + outletyear),
+  data = agg, family = "bernoulli", chains = 2, silent= TRUE, refresh=0, 
+  open_progress = FALSE, warmup = 1500, iter = 4500, cores=2, seed=123))
+
+# Information criteria
+m2a_partial = bayes_R2(m2a_partial, resp = NULL, summary = TRUE, robust = FALSE, probs = c(0.025, 0.975))
+m2b_partial = bayes_R2(m2b_partial, resp = NULL, summary = TRUE, robust = FALSE, probs = c(0.025, 0.975))
+```
+
+## Predicted Probabilities
+
+```{r}
+# Model 2a: Main Effect Authoritarian History
+print(paste("No Legacy:", logit_prob(-1.549)))
+print(paste("Legacy:", logit_prob(-1.549 + 0.543)))
+
+print(paste("Diff Legacy - No Legacy:", logit_prob(-1.549)- logit_prob(-1.549 + 0.543)))
+
+# Model 1b: Interaction Political History * Ideology
+left_no = logit_prob(-1.520)
+right_no = logit_prob(-1.520 -0.011)
+left_yes = logit_prob(-1.520 + 0.530) 
+right_yes = logit_prob(-1.520 + 0.530 -0.082) 
+
+print(paste("No Legacy, Left:", left_no))
+print(paste("No Legacy, Right:", right_no))
+print(paste("Legacy, Left:", left_yes))
+print(paste("Legacy, Right:", right_yes))
+```
+
+## Convergence
+
+Create vector of estimated parameter values produced in iterations:
+```{r}
+# Model 2a
+modeltranformed_m2a = ggs(m2a)
+# Model 2b
+modeltranformed_m2b = ggs(m2b)
+```
+
+Catterpillar plots:
+```{r}
+# Model 2a
+catterpillar_m2a = ggplot(
+ filter(modeltranformed_m2a, Parameter==c("b_Intercept", "b_autAbsent", "b_length"), Iteration>1500),
+ aes(x=Iteration, y=value, col=as.factor(Chain))) +
+ geom_line() +
+ facet_grid( Parameter ~ ., scale='free_y', switch = 'y')+ ylim(-3.5, 1.5) + 
+ labs(title="Caterpillar Plot", col= "Chains") s
+# Model 2b
+catterpillar_m2b = ggplot(
+ filter(modeltranformed_m2b, Parameter==c("b_lr_bright","b_autYes:lr_bright"), Iteration>1500), 
+ aes(x=Iteration, y=value, col=as.factor(Chain))) +
+ geom_line() +
+ facet_grid(Parameter ~ ., scale='free_y', switch = 'y')+ ylim(-3.5, 1.5) + 
+ labs(title="Caterpillar Plot", col= "Chains") 
+
+catterpillar_m2a
+catterpillar_m2b
+```
+
+Gelman-Rubin diagnostic:
+```{r}
+# Model 2a
+modelposterior_m2a = as.mcmc(m2a)
+gelman.diag(modelposterior_m2a[, 1])
+post_plot_m2a = gelman.plot(modelposterior_m2a[, 1:3])
+# Model 2b
+modelposterior_m2b = as.mcmc(m2b)
+gelman.diag(modelposterior_m2b[, 1])
+post_plot_m2b = gelman.plot(modelposterior_m2b[, 1:3])
+```
+
+Autocorrelation:
+```{r}
+# Model 2a
+autocorr.diag(modelposterior_m2a[,1:5], lags = c(0, 1,2,3,4, 5, 10, 50))
+# Model 2b
+autocorr.diag(modelposterior_m2b[,1:5], lags = c(0, 1,2,3,4, 5, 10, 50))
+```
+
+## Hypothesis Testing 
+
+Test hypotheses:
+```{r}
+# Model 2a
+hypothesis(m2a, "autYes>0", alpha = 0.001)
+
+# Model 2b
+hypothesis(m2b, "lr_bright<0", alpha = 0.001)
+hypothesis(m2b, "autYes:lr_bright<0", alpha = 0.001)
+```
+
+Plot hypotheses: 
+```{r}
+h2a_1 = plot(hypothesis(m2a, "autYes>0"), plot = F, theme = theme_get())[[1]]+ scale_x_continuous(limits=c(-1, 3))
+h2b_1 = plot(hypothesis(m2b, "autPresent<0"), plot = F, theme = theme_get())[[1]]+ scale_x_continuous(limits=c(-3, 0.5))
+
+h2a_1
+h2b_1
+```
