@@ -48,7 +48,7 @@ ggplot(data = glm, aes(x = coeff_no, y = prob, fill = coeff_no)) + coord_flip() 
  scale_fill_continuous(low = "grey10", high = "grey80") + 
  theme_minimal() + theme(axis.title.y = element_blank(), legend.position = "none")
 
-dev.copy(png,paste0(fig_dir,'Figure A.5 - Validity.png'), width = 3600, height = 3600, res=400)
+dev.copy(png,paste0(fig_dir,'Figure A.5 - Validity.png'), width = 2400, height = 1500, res=400)
 dev.off()
 ```
 

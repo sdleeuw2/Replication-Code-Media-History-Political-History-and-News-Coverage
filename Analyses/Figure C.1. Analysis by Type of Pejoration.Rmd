@@ -1,5 +1,5 @@
 ---
-title: "Figure 3: Robustness Test Linguistic and Semantic Differences"
+title: "C.1. Analysis by Type of Pejoration"
 ---
 
 Import data and libraries:
@@ -18,10 +18,16 @@ crosstab = function(var1, var2, name_var, name_pej) {
  tab$mean = 0; tab$lower = 0; tab$upper = 0
  return(tab)}
 
-crosstabs = rbind(crosstab(df$prof_trad, df$pej_hist, "Media History", "Historical"), 
-                  crosstab(df$prof_trad, df$pej_cont, "Media History", "Contemporary"),
+crosstabs = rbind(crosstab(df$prof_trad, df$pej_antidem, "Media History", "Antidemocratic"), 
+                  crosstab(df$prof_trad, df$pej_hist, "Media History", "Historical"), 
+                  crosstab(df$prof_trad, df$pej_cont, "Media History", "Contemporary"), 
+                  crosstab(df$prof_trad, df$pej_ill, "Media History", "Illiberal"),
+                  crosstab(df$prof_trad, df$pej_pop, "Media History", "Populist"),
+                  crosstab(df$aut, df$pej_antidem, "Political History", "Antidemocratic"), 
                   crosstab(df$aut, df$pej_hist, "Political History", "Historical"), 
-                  crosstab(df$aut, df$pej_cont, "Political History", "Contemporary"))
+                  crosstab(df$aut, df$pej_cont, "Political History", "Contemporary"), 
+                  crosstab(df$aut, df$pej_ill, "Political History", "Illiberal"),
+                  crosstab(df$aut, df$pej_pop, "Political History", "Populist"))
 
 colnames(crosstabs) = c("variable", "n", "sum", "test", "pejoration", "mean", "lower", "upper")
 ```
@@ -47,7 +53,7 @@ Function to create plot
 ```{r}
 bayesprop_plot = function(data, xlab) {
  library(ggplot2)
- plot = ggplot(data, aes(variable, mean)) + ylim(0, 30) + xlab(xlab) + ylab("Percentage") + 
+ plot = ggplot(data, aes(variable, mean)) + xlab(xlab) + ylab("Percentage") + 
   geom_col(alpha=0.2, colour = "black", fill = "gray10") +
   geom_errorbar(aes(ymin=lower, ymax=upper), width=.1, color = "grey40") + 
   geom_point(color = "black", size=1) +
@@ -56,17 +62,17 @@ bayesprop_plot = function(data, xlab) {
         axis.title.x = element_text(vjust = -2), strip.text = element_text(size = 12)) + 
   facet_grid(~ pejoration)
   return(plot)}
+
+# reorder factor
+crosstabs$variable = factor(crosstabs$variable,levels = c("Low", "Medium", "High", "No", "Yes")) 
 ```
 
 ```{r}
-crosstabs$variable = factor(crosstabs$variable,levels = c("Low", "Medium", "High", "No", "Yes"))
+
 p1 = bayesprop_plot(subset(crosstabs, test == "Media History"), "(a) Level of Professionalism") 
-p2 = bayesprop_plot(subset(crosstabs, test == "Political History"), "(b) Authoritarian Past") + 
- theme(axis.title.y = element_blank(), axis.text.y = element_blank())
+p2 = bayesprop_plot(subset(crosstabs, test == "Political History"), "(b) Authoritarian Past") 
 
-ggpubr::ggarrange(p1, p2, widths = c(1.05, 1))
-dev.copy(png,paste0(fig_dir,'Figure 3 - Robustness.png'), width = 3600, height = 1800, res=400)
-dev.off()
+
+#dev.copy(png,paste0(fig_dir,'Figure C.1. - Analysis by Type of Pejoration.png'), width = 3600, height = 1800, res=400)
+#dev.off()
 ```
-
-
