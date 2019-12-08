@@ -68,11 +68,10 @@ crosstabs$variable = factor(crosstabs$variable,levels = c("Low", "Medium", "High
 ```
 
 ```{r}
-
 p1 = bayesprop_plot(subset(crosstabs, test == "Media History"), "(a) Level of Professionalism") 
 p2 = bayesprop_plot(subset(crosstabs, test == "Political History"), "(b) Authoritarian Past") 
+ggpubr::ggarrange(p1, p2, nrow = 2, ncol = 1)
 
-
-#dev.copy(png,paste0(fig_dir,'Figure C.1. - Analysis by Type of Pejoration.png'), width = 3600, height = 1800, res=400)
-#dev.off()
+dev.copy(png,paste0(fig_dir,'Figure C.1. - Analysis by Type of Pejoration.png'), width = 3600, height = 3600, res=400)
+dev.off()
 ```

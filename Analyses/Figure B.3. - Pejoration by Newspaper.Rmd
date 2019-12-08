@@ -2,3 +2,34 @@
 title: "Figure B.3. - Pejoration by Newspaper"
 ---
 
+Import data and libraries:
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+source("source_file.R")
+```
+
+Aggregate data by newspaper: 
+```{r}
+df$outcntry = paste0(df$outlet, " (", df$country, ")")
+
+agg = data.frame(
+ outlet = rep(aggregate(pej ~ outcntry, data = df, FUN = mean)[,1], 5),
+ rbind(
+  cbind(measure = "Antidemocratic", prop = aggregate(pej_antidem ~ outcntry, data = df, FUN = mean)[,2]),
+  cbind(measure = "Historical", prop = aggregate(pej_hist ~ outcntry, data = df, FUN = mean)[,2]),   
+  cbind(measure = "Contemporary", prop = aggregate(pej_cont ~ outcntry, data = df, FUN = mean)[,2]),
+  cbind(measure = "Illiberal", prop = aggregate(pej_ill ~ outcntry, data = df, FUN = mean)[,2]),
+  cbind(measure = "Populist", prop = aggregate(pej_pop ~ outcntry, data = df, FUN = mean)[,2])))
+
+agg$prop = as.numeric(as.character(agg$prop))
+```
+
+```{r}
+library(ggplot2)
+ggplot(agg, aes(measure, prop)) + geom_bar(stat = "identity", alpha = 0.75) + 
+ facet_wrap(.~ outlet, ncol = 4) + theme_minimal() + 
+ theme(axis.title = element_blank(), axis.text.x = element_text(angle = 90, hjust = 1))
+
+dev.copy(png,paste0(fig_dir,'Figure B.3. - Pejoration by Newspaper.png'), width = 3600, height = 4500, res=400)
+dev.off()
+```
+

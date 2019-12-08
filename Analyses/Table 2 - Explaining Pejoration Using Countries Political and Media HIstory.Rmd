@@ -1,0 +1,92 @@
+---
+title: "Table 2 - Explaining Pejoration Using Countries Political and Media HIstory"
+---
+
+Data and directories
+```{r}
+source("source_file.R")
+```
+
+List of models
+```{r}
+formulas = list(
+ m1a = "pej ~  prof_trad + lr + length + (1|outlet) + (1|country)",
+ m1b = "pej ~  partrad + lr_b + lr_b*partrad + length + (1 |outlet) + (1 + lr_b |country)",
+ m2a = "pej ~  aut + lr + length + (1|outlet) + (1|country)",
+ m2b = "pej ~  aut + lr_b + lr_b*aut + length + (1 |outlet) + (1 + lr_b|country)")
+```
+
+Functions to run, clean and save model 
+```{r}
+# tidy output to save
+model_tidy = function(model, name) {
+ library(broom)
+ mtidy = tidy(model) %>% mutate_if(is.numeric, funs(round(., 3)))
+ mtidy$lb = round(mtidy$estimate - (1.28*mtidy$`std.error`), 3)
+ mtidy$ub = round(mtidy$estimate + (1.28*mtidy$`std.error`), 3)
+ mtidy$estimate = format(mtidy$estimate, 3); mtidy$`std.error` = format(mtidy$`std.error`, 3)
+ mtidy$lb = format(mtidy$lb, digits = 3); mtidy$ub = format(mtidy$ub, digits = 3)
+ mtidy$b_se = paste0(mtidy$estimate, "(", mtidy$`std.error`, ")") 
+ mtidy$ci = paste0("[", mtidy$lb, ";", mtidy$ub, "]")
+ writexl::write_xlsx(mtidy, paste0(tab_dir, name, ".xlsx"))
+ return(mtidy)
+}
+
+# Run model and save 
+bayesmodel = function(formula_chr, name) {
+ library(rstanarm); library(ggmcmc); library(broom); library(writexl)
+ model = stan_glmer(formula = formula_chr, data = df, seed = 934, iter = 100, chains = 1)
+ model_tidy(model, name)
+ iter = ggs(model); r2 = mean(bayes_R2(model, summary = TRUE, probs = c(0.025, 0.975)))
+ output = list(model, iter, loo, r2); return(output)}
+```
+
+Run models
+```{r}
+m1a = bayesmodel(formulas[[1]], "m1a")
+m1b = bayesmodel(formulas[[2]], "m1b")
+m2a = bayesmodel(formulas[[3]], "m2a")
+m2b = bayesmodel(formulas[[4]], "m2b")
+```
+
+Predicted probabilities
+```{r}
+# Function predicting probabilities
+logit_prob = function(logit){odds = exp(logit); prob = odds / (1 + odds); return(prob)}
+```
+
+Convergence checks
+```{r}
+# convergence across chains
+catterpillarplot = function(gss_object, par_vec) {
+ library(dplyr); library(ggplot2)
+ data = subset(gss_object, Iteration >= 10)
+ 
+ plot = ggplot(
+  filter(data, Parameter==par_vec), aes(x=Iteration, y=value, col=as.factor(Chain))) +
+  geom_line() + ylab("Value") + scale_color_grey() +  theme_minimal() + facet_wrap(.~ Parameter) + 
+  theme(legend.position = "none")
+  
+ return(plot)
+}
+```
+
+Test hypotheses:
+```{r}
+# Model 1a
+hypothesis(m1a, "prof_tradMedium<0", alpha = 0.001)
+hypothesis(m1a, "prof_tradHigh<0", alpha = 0.001)
+hypothesis(m1a, "prof_tradMedium - prof_tradHigh > 0", alpha = 0.001)
+
+# Model 1b
+hypothesis(m1b, "par_tradMedium:lr_bright>0", alpha = 0.001)
+hypothesis(m1b, "par_tradHigh:lr_bright>0", alpha = 0.001)
+hypothesis(m1b, "par_tradHigh:lr_bright - par_tradMedium:lr_bright >0", alpha = 0.001)
+
+# Model 2a
+hypothesis(m2a, "autYes>0", alpha = 0.001)
+
+# Model 2b
+hypothesis(m2b, "lr_bright<0", alpha = 0.001)
+hypothesis(m2b, "autYes:lr_bright<0", alpha = 0.001)
+```
