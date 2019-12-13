@@ -1,6 +1,6 @@
 
 # directory Github code
-location_folder = "/Users/sjifradeleeuw/GitHub/" # change location
+location_folder = "dir/to/location" # change location
 
 # directories
 data_dir = paste0(location_folder, "Replication-Code-Media-History-Political-History-and-News-Coverage/Data/") # do not change
