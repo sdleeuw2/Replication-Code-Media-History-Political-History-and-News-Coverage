@@ -7,27 +7,35 @@ Import data and libraries:
 source("source_file.R")
 ```
 
-Aggregate data by newspaper: 
 ```{r}
 df$outcntry = paste0(df$outlet, " (", df$country, ")")
+df$id = with(df, ave(rep(1, nrow(df)), outcntry, FUN = seq_along))
+lr = subset(df, id == 1)[, c("outcntry", "lr")]
+```
 
+
+Aggregate data by newspaper: 
+```{r}
 agg = data.frame(
- outlet = rep(aggregate(pej ~ outcntry, data = df, FUN = mean)[,1], 5),
+ outcntry = rep(aggregate(pej ~ outcntry, data = df, FUN = mean)[,1], 5),
  rbind(
-  cbind(measure = "Antidemocratic", prop = aggregate(pej_antidem ~ outcntry, data = df, FUN = mean)[,2]),
-  cbind(measure = "Historical", prop = aggregate(pej_hist ~ outcntry, data = df, FUN = mean)[,2]),   
+  cbind(measure = "Antidemocratic", prop = aggregate(pej_antidem ~ + outcntry , data = df, FUN = mean)[,2]),
+  cbind(measure = "Historical", prop = aggregate(pej_hist ~ outcntry , data = df, FUN = mean)[,2]),   
   cbind(measure = "Contemporary", prop = aggregate(pej_cont ~ outcntry, data = df, FUN = mean)[,2]),
   cbind(measure = "Illiberal", prop = aggregate(pej_ill ~ outcntry, data = df, FUN = mean)[,2]),
   cbind(measure = "Populist", prop = aggregate(pej_pop ~ outcntry, data = df, FUN = mean)[,2])))
 
 agg$prop = as.numeric(as.character(agg$prop))
+agg = merge(agg, lr, by = c("outcntry"))
 ```
 
 ```{r}
 library(ggplot2)
-ggplot(agg, aes(measure, prop)) + geom_bar(stat = "identity", alpha = 0.75) + 
- facet_wrap(.~ outlet, ncol = 4) + theme_minimal() + 
- theme(axis.title = element_blank(), axis.text.x = element_text(angle = 90, hjust = 1))
+ggplot(agg, aes(x = measure, y = prop, fill = lr)) + geom_bar(stat = "identity", alpha = 0.75) + 
+ facet_wrap(.~ outcntry, ncol = 4) + theme_minimal() + 
+ scale_fill_manual(values = c("grey0", "grey90", "grey45")) + 
+ theme(axis.title = element_blank(), axis.text.x = element_text(angle = 90, hjust = 1), 
+       legend.position = "bottom", legend.title = element_blank())
 
 dev.copy(png,paste0(fig_dir,'Figure B.3. - Pejoration by Newspaper.png'), width = 3600, height = 4500, res=400)
 dev.off()

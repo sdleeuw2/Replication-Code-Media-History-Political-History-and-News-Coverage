@@ -3,6 +3,7 @@ title: "Table 2 - Explaining Pejoration Using Countries Political and Media HIst
 ---
 
 Data and directories
+
 ```{r}
 source("source_file.R")
 ```
@@ -35,7 +36,7 @@ model_tidy = function(model, name) {
 # Run model and save 
 bayesmodel = function(formula_chr, name) {
  library(rstanarm); library(ggmcmc); library(broom); library(writexl)
- model = stan_glmer(formula = formula_chr, data = df, seed = 934, iter = 100, chains = 1)
+ model = stan_glmer(formula = formula_chr, data = df, seed = 934, iter = 5000, chains = 2, adapt_delta = 0.99)
  model_tidy(model, name)
  iter = ggs(model); r2 = mean(bayes_R2(model, summary = TRUE, probs = c(0.025, 0.975)))
  output = list(model, iter, loo, r2); return(output)}
@@ -49,44 +50,87 @@ m2a = bayesmodel(formulas[[3]], "m2a")
 m2b = bayesmodel(formulas[[4]], "m2b")
 ```
 
+```{r}
+m2b[[1]]
+```
+
+
+Edit GSS objects
+```{r}
+library(plyr)
+
+m1a_gss = m1a[[2]]; m1a_gss$Parameter = revalue(m1a_gss$Parameter, 
+  c("alpha[1]" = "Model 1a: Intercept", "beta[1]" = "Model 1a: Medium Professionalism", 
+    "beta[2]" = "Model 1a: High Professionalism", "beta[3]" = "Model 1a: Ideology Right",
+    "beta[4]" = "Model 1a: Ideology Center"))
+
+m1b_gss = m1b[[2]]; m1b_gss$Parameter = revalue(m1b_gss$Parameter, 
+  c("alpha[1]" = "Model 1b: Intercept", "beta[1]" = "Model 1b: Medium Parallelism", 
+    "beta[2]" = "Model 1b: High Parallelism", "beta[3]" = "Model 1b: Ideology Right",
+    "beta[5]" = "Model 1b: Par. Medium x Right",
+    "beta[6]" = "Model 1b: Par. High x Right"))
+
+m2a_gss = m2a[[2]]; m2a_gss$Parameter = revalue(m2a_gss$Parameter, 
+  c("alpha[1]" = "Model 2a: Intercept", "beta[1]" = "Model 2a: Authoritarian Legacy", 
+    "beta[2]" = "Model 2a: Ideology Right", "beta[3]" = "Model 2a: Ideology Center"))
+
+m2b_gss = m2b[[2]]; m2b_gss$Parameter = revalue(m2b_gss$Parameter, 
+  c("alpha[1]" = "Model 2b: Intercept", "beta[1]" = "Model 2b: Authoritarian Legacy", 
+    "beta[2]" = "Model 2b: Ideology Right",  
+    "beta[4]" = "Model 2b: Legacy x Right"))
+
+trace = rbind(m1a_gss, m1b_gss, m2a_gss, m2b_gss)
+trace = subset(trace, !grepl("\\[", trace$Parameter))
+trace = subset(trace, Parameter!="aux" & Parameter!="mean_PPD")
+```
+
 Predicted probabilities
 ```{r}
 # Function predicting probabilities
 logit_prob = function(logit){odds = exp(logit); prob = odds / (1 + odds); return(prob)}
+
+# M1a 
+m1a_diff_med = logit_prob(0.307) - logit_prob(0.307 - 0.165) 
+m1a_diff_hi = logit_prob(0.307) - logit_prob(0.307 - 0.178)
+
+# M1b 
+m1b_diff_low = logit_prob(0.145) - logit_prob(0.145-0.026)
+m1b_diff_med = logit_prob(0.145-0.015) - logit_prob(0.145-0.015-0.026+0.041)
+m1b_diff_hi = logit_prob(0.145+0.124) - logit_prob(0.145+0.124-0.026+0.023)
+
+# M2a 
+m2a_diff = logit_prob(0.146) - logit_prob(0.146 + 0.106)
+
+# M2b
+m2b_diff_no = logit_prob(0.145) - logit_prob(0.145+0.007) 
 ```
 
-Convergence checks
+R-squared
 ```{r}
-# convergence across chains
-catterpillarplot = function(gss_object, par_vec) {
- library(dplyr); library(ggplot2)
- data = subset(gss_object, Iteration >= 10)
- 
- plot = ggplot(
-  filter(data, Parameter==par_vec), aes(x=Iteration, y=value, col=as.factor(Chain))) +
-  geom_line() + ylab("Value") + scale_color_grey() +  theme_minimal() + facet_wrap(.~ Parameter) + 
-  theme(legend.position = "none")
-  
- return(plot)
-}
+r2 = data.frame(rbind(
+ cbind(m = "m1a", r2 = round(m1a[[4]],6)), cbind(m = "m1b", r2 = round(m1b[[4]],6)),
+ cbind(m = "m2a", r2 = round(m2a[[4]],6)), cbind(m = "m2b", r2 = round(m2b[[4]],6))))
+
+writexl::write_xlsx(r2, paste0(tab_dir, "R-squared.xlsx"))
 ```
 
 Test hypotheses:
 ```{r}
-# Model 1a
-hypothesis(m1a, "prof_tradMedium<0", alpha = 0.001)
-hypothesis(m1a, "prof_tradHigh<0", alpha = 0.001)
-hypothesis(m1a, "prof_tradMedium - prof_tradHigh > 0", alpha = 0.001)
+postprob = function(model, term) {
+ library(brms); test = hypothesis(model[[1]], term, alpha = 0.1)
+ term = test$hypothesis[1]; postprob = test$hypothesis[7]; out = cbind(term, postprob)
+ return(out)
+}
 
-# Model 1b
-hypothesis(m1b, "par_tradMedium:lr_bright>0", alpha = 0.001)
-hypothesis(m1b, "par_tradHigh:lr_bright>0", alpha = 0.001)
-hypothesis(m1b, "par_tradHigh:lr_bright - par_tradMedium:lr_bright >0", alpha = 0.001)
+hyptests = rbind(
+ cbind(m = "m1a", postprob(m1a, "prof_tradMedium<0")), 
+ cbind(m = "m1a", postprob(m1a, "prof_tradHigh<0")), 
+ cbind(m = "m1a", postprob(m1a, "prof_tradMedium - prof_tradHigh > 0")), 
+ cbind(m = "m1b", postprob(m1b, "partradMedium:lr_bright > 0 ")), 
+ cbind(m = "m1b", postprob(m1b, "partradHigh:lr_bright>0")), 
+ cbind(m = "m1b", postprob(m1b, "partradHigh:lr_bright - partradMedium:lr_bright >0")),
+ cbind(m = "m2a", postprob(m2a, "autYes>0")), 
+ cbind(m = "m2b", postprob(m2b, "autYes:lr_bright<0")))
 
-# Model 2a
-hypothesis(m2a, "autYes>0", alpha = 0.001)
-
-# Model 2b
-hypothesis(m2b, "lr_bright<0", alpha = 0.001)
-hypothesis(m2b, "autYes:lr_bright<0", alpha = 0.001)
+writexl::write_xlsx(hyptests, paste0(tab_dir, "Hypothesis tests.xlsx"))
 ```

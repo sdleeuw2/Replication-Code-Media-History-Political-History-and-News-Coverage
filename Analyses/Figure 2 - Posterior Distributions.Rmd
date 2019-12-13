@@ -17,8 +17,8 @@ posterior_viz = function(mcmc_ob, par_vec, par_names, title) {
  plot = ggplot(filter(mcmc_ob, Parameter==par_vec, Iteration>=500), aes(x=value, fill=Parameter)) + 
   annotate("rect", xmin=-0.05, xmax=0.05, ymin=0, ymax=Inf, alpha=0.5, fill="grey70") + 
   geom_density(alpha=.5) + geom_vline(xintercept = 0, col="black", size=0.4) +
-  scale_x_continuous(limits=c(-2.5, 2.5)) + 
-  scale_y_continuous(name="Density", limits=c(0, 3.7)) + 
+  scale_x_continuous(limits=c(-0.5, 0.5)) + 
+  scale_y_continuous(name="Density", limits=c(0, 10)) + 
   scale_fill_manual(values = colors, labels= par_names) +
   facet_grid(.~ as.character(title)) + 
   theme_minimal() + theme(legend.justification = "center", legend.position = "bottom", 
@@ -28,28 +28,23 @@ posterior_viz = function(mcmc_ob, par_vec, par_names, title) {
 }
 ```
 
-
 ```{r}
 # Model 1a: Professionalism
-m1a = posterior_viz(modeltranformed_m1a, 
-        c("b_prof_tradMedium" ,"b_prof_tradHigh"), 
-        c("Medium", "High"), "(a) Main Effect Professionalism")
+m1a = posterior_viz(m1a_gss, unique(m1a_gss$Parameter)[2:3], 
+      c("Medium", "High"), "(a) Main Effect Professionalism")
 
 # Model 1b: Parallelism x Ideology
-m1b = posterior_viz(modeltranformed_m1b, 
-        c("b_par_tradMedium:lr_bright" ,"b_par_tradHigh:lr_bright"), 
-        c("Medium", "High"), "(b) Interaction Parallelism and ideology")
+m1b = posterior_viz(m1b_gss, unique(m1b_gss$Parameter)[6:7], 
+      c("Medium", "High"), "(b) Interaction Parallelism and ideology")
 
 # Model 2a: Authoritarian Legacy
-m2a = posterior_viz(modeltranformed_m2a, 
-        c("b_autYes"), c("Present"), "(c) Main Effect Authoritarian Legacy")
+m2a = posterior_viz(m2a_gss, unique(m2a_gss$Parameter)[2], 
+      c("Present"), "(c) Main Effect Authoritarian Legacy")
 
 # Model 2b: Authoritarian Legacy x Ideology 
-m2b = posterior_viz(modeltranformed_m2b, 
-        c("b_autYes:lr_bright"), c("Present"), "(d) Interaction Legacy and Ideology")
+m2b = posterior_viz(m2b_gss, unique(m2b_gss$Parameter)[5], 
+      c("Present"), "(d) Interaction Legacy and Ideology")
 ```
-
-
 
 Combine and export figures
 ```{r}
