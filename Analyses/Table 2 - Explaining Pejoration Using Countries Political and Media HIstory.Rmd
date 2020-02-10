@@ -10,17 +10,17 @@ source("source_file.R")
 
 List of models
 ```{r}
-formulas = list(
+spells = list(
  m1a = "pej ~  prof_trad + lr + length + (1|outlet) + (1|country)",
  m1b = "pej ~  partrad + lr_b + lr_b*partrad + length + (1 |outlet) + (1 + lr_b |country)",
  m2a = "pej ~  aut + lr + length + (1|outlet) + (1|country)",
  m2b = "pej ~  aut + lr_b + lr_b*aut + length + (1 |outlet) + (1 + lr_b|country)")
 ```
 
-Functions to run, clean and save model 
+Functions
 ```{r}
-# tidy output to save
-model_tidy = function(model, name) {
+# Function to tidy output and save to excel file
+scouringcharm = function(model, name) {
  library(broom)
  mtidy = tidy(model) %>% mutate_if(is.numeric, funs(round(., 3)))
  mtidy$lb = round(mtidy$estimate - (1.28*mtidy$`std.error`), 3)
@@ -33,27 +33,29 @@ model_tidy = function(model, name) {
  return(mtidy)
 }
 
-# Run model and save 
-bayesmodel = function(formula_chr, name) {
+# Function to perform bayesian analysis, conduct fit tests and save to excel file
+accio_bayes = function(formula_chr, name) {
  library(rstanarm); library(ggmcmc); library(broom); library(writexl)
  model = stan_glmer(formula = formula_chr, data = df, seed = 934, iter = 5000, chains = 2, adapt_delta = 0.99)
- model_tidy(model, name)
+ scouringcharm(model, name)
  iter = ggs(model); r2 = mean(bayes_R2(model, summary = TRUE, probs = c(0.025, 0.975)))
  output = list(model, iter, loo, r2); return(output)}
+
+# Function to conduct hypothesis test on posterior distributions
+revelioposterior = function(model, hypothesis_chr) {
+ library(brms); test = hypothesis(model[[1]], hypothesis_chr, alpha = 0.1)
+ term = test$hypothesis[1]; cred = test$hypothesis[7]; out = cbind(term, cred)
+ return(out)
+}
 ```
 
 Run models
 ```{r}
-m1a = bayesmodel(formulas[[1]], "m1a")
-m1b = bayesmodel(formulas[[2]], "m1b")
-m2a = bayesmodel(formulas[[3]], "m2a")
-m2b = bayesmodel(formulas[[4]], "m2b")
+m1a = accio_bayes(spells[[1]], "m1a")
+m1b = accio_bayes(spells[[2]], "m1b")
+m2a = accio_bayes(spells[[3]], "m2a")
+m2b = accio_bayes(spells[[4]], "m2b")
 ```
-
-```{r}
-m2b[[1]]
-```
-
 
 Edit GSS objects
 ```{r}
@@ -116,21 +118,21 @@ writexl::write_xlsx(r2, paste0(tab_dir, "R-squared.xlsx"))
 
 Test hypotheses:
 ```{r}
-postprob = function(model, term) {
+revelioposterior = function(model, term) {
  library(brms); test = hypothesis(model[[1]], term, alpha = 0.1)
- term = test$hypothesis[1]; postprob = test$hypothesis[7]; out = cbind(term, postprob)
+ term = test$hypothesis[1]; cred = test$hypothesis[7]; out = cbind(term, cred)
  return(out)
 }
 
 hyptests = rbind(
- cbind(m = "m1a", postprob(m1a, "prof_tradMedium<0")), 
- cbind(m = "m1a", postprob(m1a, "prof_tradHigh<0")), 
- cbind(m = "m1a", postprob(m1a, "prof_tradMedium - prof_tradHigh > 0")), 
- cbind(m = "m1b", postprob(m1b, "partradMedium:lr_bright > 0 ")), 
- cbind(m = "m1b", postprob(m1b, "partradHigh:lr_bright>0")), 
- cbind(m = "m1b", postprob(m1b, "partradHigh:lr_bright - partradMedium:lr_bright >0")),
- cbind(m = "m2a", postprob(m2a, "autYes>0")), 
- cbind(m = "m2b", postprob(m2b, "autYes:lr_bright<0")))
+ cbind(m = "m1a", revelioposterior(m1a, "prof_tradMedium<0")), 
+ cbind(m = "m1a", revelioposterior(m1a, "prof_tradHigh<0")), 
+ cbind(m = "m1a", revelioposterior(m1a, "prof_tradMedium - prof_tradHigh > 0")), 
+ cbind(m = "m1b", revelioposterior(m1b, "partradMedium:lr_bright > 0 ")), 
+ cbind(m = "m1b", revelioposterior(m1b, "partradHigh:lr_bright>0")), 
+ cbind(m = "m1b", revelioposterior(m1b, "partradHigh:lr_bright - partradMedium:lr_bright >0")),
+ cbind(m = "m2a", revelioposterior(m2a, "autYes>0")), 
+ cbind(m = "m2b", revelioposterior(m2b, "autYes:lr_bright<0")))
 
 writexl::write_xlsx(hyptests, paste0(tab_dir, "Hypothesis tests.xlsx"))
 ```
