@@ -40,6 +40,14 @@ for (i in c(1:length(crosstabs$variable))) {
  crosstabs$mean[i] = bayes_prop(crosstabs$n[i], crosstabs$sum[i])[,1]*100
  crosstabs$lower[i] = bayes_prop(crosstabs$n[i], crosstabs$sum[i])[,2]*100
  crosstabs$upper[i] = bayes_prop(crosstabs$n[i], crosstabs$sum[i])[,3]*100}
+
+library(plyr)
+crosstabs$variable = revalue(crosstabs$variable, 
+                             c("Low" = "Polarized Pluralist",
+                              "Medium" = "Democratic Corporatist",
+                              "High" = "Liberal", 
+                              "Yes" = "Yes
+                                                             "))
 crosstabs
 ```
 
@@ -52,17 +60,16 @@ bayesprop_plot = function(data, xlab) {
   geom_errorbar(aes(ymin=lower, ymax=upper), width=.1, color = "grey40") + 
   geom_point(color = "black", size=1) +
   theme_minimal() + 
-  theme(axis.text.x = element_text(vjust = 0.5, hjust = 0.5), 
-        axis.title.x = element_text(vjust = -2), strip.text = element_text(size = 12)) + 
-  facet_grid(~ pejoration)
+  theme(axis.text.x = element_text(vjust = 0.5, hjust = 1, angle = 90), 
+        axis.title.x = element_text(vjust = -2), 
+        strip.text = element_text(size = 12)) + 
+  facet_grid(. ~ pejoration)
   return(plot)}
 ```
 
 ```{r}
-crosstabs$variable = factor(crosstabs$variable,levels = c("Low", "Medium", "High", "No", "Yes"))
-p1 = bayesprop_plot(subset(crosstabs, test == "Media History"), "(a) Level of Professionalism") 
-p2 = bayesprop_plot(subset(crosstabs, test == "Political History"), "(b) Authoritarian Past") + 
- theme(axis.title.y = element_blank(), axis.text.y = element_blank())
+p1 = bayesprop_plot(subset(crosstabs, test == "Media History"), "(a) Media System") 
+p2 = bayesprop_plot(subset(crosstabs, test == "Political History"), "(b) Authoritarian Past") + theme(axis.title.y = element_blank(), axis.text.y = element_blank())
 
 ggpubr::ggarrange(p1, p2, widths = c(1.05, 1))
 dev.copy(png,paste0(fig_dir,'Figure 3 - Robustness.png'), width = 3600, height = 1800, res=400)

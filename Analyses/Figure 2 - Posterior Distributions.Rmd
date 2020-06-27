@@ -31,11 +31,11 @@ posterior_viz = function(mcmc_ob, par_vec, par_names, title) {
 ```{r}
 # Model 1a: Professionalism
 m1a = posterior_viz(m1a_gss, unique(m1a_gss$Parameter)[2:3], 
-      c("Medium", "High"), "(a) Main Effect Professionalism")
+      c("Democratic Corporatist", "Liberal"), "(a) Main Effect Media System")
 
 # Model 1b: Parallelism x Ideology
 m1b = posterior_viz(m1b_gss, unique(m1b_gss$Parameter)[6:7], 
-      c("Medium", "High"), "(b) Interaction Parallelism and ideology")
+      c("Democratic Corporatist", "Liberal"), "(b) Interaction Parallelism and Ideology")
 
 # Model 2a: Authoritarian Legacy
 m2a = posterior_viz(m2a_gss, unique(m2a_gss$Parameter)[2], 
