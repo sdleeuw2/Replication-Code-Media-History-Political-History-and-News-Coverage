@@ -1,4 +1,4 @@
-# Replication-Code-Media-History-Political-History-and-News-Coverage
+# Replication Code Media History Political History and News Coverage
 
 This repository contains the replication code for the study *After All This Time? The Impact of Media and Political History on Political News Coverage in Twelve Western Countries*, accepted for publication in the *Journal of Communication*, Volume 70, Issue 5. 
 
