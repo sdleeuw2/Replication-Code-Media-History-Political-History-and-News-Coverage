@@ -23,8 +23,8 @@ Functions
 scouringcharm = function(model, name) {
  library(broom)
  mtidy = tidy(model) %>% mutate_if(is.numeric, funs(round(., 3)))
- mtidy$lb = round(mtidy$estimate - (1.28*mtidy$`std.error`), 3)
- mtidy$ub = round(mtidy$estimate + (1.28*mtidy$`std.error`), 3)
+ mtidy$lb = round(mtidy$estimate - (1.64*mtidy$`std.error`), 3)
+ mtidy$ub = round(mtidy$estimate + (1.64*mtidy$`std.error`), 3)
  mtidy$estimate = format(mtidy$estimate, 3); mtidy$`std.error` = format(mtidy$`std.error`, 3)
  mtidy$lb = format(mtidy$lb, digits = 3); mtidy$ub = format(mtidy$ub, digits = 3)
  mtidy$b_se = paste0(mtidy$estimate, "(", mtidy$`std.error`, ")") 
