@@ -1,0 +1,114 @@
+---
+title: "Table 2"
+---
+
+Import Libraries:
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+library(lme4)
+library(lmerTest)
+library(boot)
+library(lm.beta)
+library(memisc)
+library(plyr)
+library(ggplot2)
+```
+
+Import Data:
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+source("source_file.R")
+library(readxl)
+output = rbind(cbind(read_xlsx(paste0(tab_dir, "m1a.xlsx")), model = "Model 1a: Media History"), 
+               cbind(read_xlsx(paste0(tab_dir, "m1b.xlsx")), model = "Model 1b: Media History"), 
+               cbind(read_xlsx(paste0(tab_dir, "m2a.xlsx")), model = "Model 2a: Authoritarian History"),
+               cbind(read_xlsx(paste0(tab_dir, "m2b.xlsx")), model = "Model 2b: Authoritarian History"))
+```
+
+```{r}
+output$lb = as.numeric(output$lb); output$ub = as.numeric(output$ub)
+output$coeff = (output$lb + output$ub) / 2
+
+output$variable = plyr::revalue(factor(output$term), c(
+  "(Intercept)" = "Intercept",
+  "prof_tradMedium" = "System: Corporatist",
+  "prof_tradHigh" = "System: Liberal",
+  "lrright" = "Ideology: Right", 
+  "lrcenter" = "Ideology: Center", 
+  "length" = "Length", 
+  "partradMedium" = "Parallelism: Medium", 
+  "partradHigh" = "Parallelism: High", 
+  "lr_bright" = "Ideology: Right",
+  "partradMedium:lr_bright" = "Medium Par. x Right",
+  "partradHigh:lr_bright" = "High Par. x Right", 
+  "autYes" = "Legacy: Yes",   
+  "autYes:lr_bright" = "Legacy x Right" 
+))
+
+output$var = plyr::revalue(factor(output$variable), c(
+  "Intercept" = "1",
+  "System: Corporatist",
+  "System: Liberal",
+  "Ideology: Right", 
+  "Ideology: Center", 
+  "Length" = "2", 
+  "Parallelism: Medium", 
+  "Parallelism: High", 
+  "Ideology: Right",
+  "Medium Par. x Right",
+  "High Par. x Right", 
+  "Legacy: Yes",   
+  "Legacy x Right" 
+))
+```
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+source("source_file.R")
+library(ggplot2)
+results = data.frame(readxl::read_xlsx(paste0(tab_dir, "h1_results.xlsx")))
+
+results$model = gsub("\r\n", "\n", results$model)
+results$dv = stringr::str_split_fixed(results$model, "\n", 2)[,2]
+results$dv = stringr::str_split_fixed(results$dv, ": ", 2)[,2]
+results$model2 = stringr::str_split_fixed(results$model, "\n", 2)[,1]
+results$model2 = tm::stripWhitespace(results$model2)
+results = subset(results, variable != "Intercept")
+results = results[order(results$var),]
+results$model2[grepl("Left-Wing", results$model2) == TRUE] = "M1b: Left-Wing (N=55,488)"
+
+results$variable = as.character(results$variable)
+varnames = unique(results$variable)
+
+dist = 0.1
+psize = 0.75
+
+ggplot(data = results, aes(x = coeff_boot, y = var)) + 
+  geom_vline(xintercept = 0, color = "grey70", size = 0.25) +
+  geom_segment(data = subset(results, dv == "Democratic Support"),
+               aes(x = lb_boot, xend = ub_boot, y = var + dist, yend = var + dist, color = dv)) + 
+  geom_point(data = subset(results, dv == "Democratic Support"), 
+             aes(x = coeff_boot, y = var + dist, color = dv), size = psize) + 
+  geom_segment(data = subset(results, dv == "Left-Right"),
+               aes(x = lb_boot, xend = ub_boot, y = var - dist, yend = var - dist, color = dv)) + 
+  geom_point(data = subset(results, dv == "Left-Right"), 
+             aes(x = coeff_boot, y = var - dist, color = dv), size = psize) + 
+  scale_color_grey() + 
+  scale_y_continuous(breaks = c(2:(length(varnames) + 1)), labels = varnames) + 
+  theme_minimal() + 
+  labs(color = "Dependent Variable") + 
+  theme(axis.title = element_blank(), 
+        legend.position = "bottom", 
+        panel.grid.minor.y = element_blank(), 
+        strip.text = element_text(size = 10, lineheight = 1.5, vjust = 1) 
+        ) +
+  facet_wrap(model2 ~ ., dir = "v", ncol = 4)
+
+ggsave(paste0(fig_dir, " coefplot_h1.png"), width = 10, height = 6)
+```
+
+
+
+
+
+
+
+
